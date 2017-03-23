@@ -1,0 +1,11 @@
+{
+  "default":"en",
+  "en":{
+    "appName":"RCT-OneCapacity",
+    "capSensor":"Select Sensor",
+    "swCap":"Select Reset Switch",
+    "capBatt":"Alarm Value (mAh)",
+    "capDsp":"RCT-OneCapacity",
+	"capAlm":"CAP"
+  }
+}
