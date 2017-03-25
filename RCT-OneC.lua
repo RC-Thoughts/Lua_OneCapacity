@@ -12,6 +12,8 @@
     
     OneCapacity works in DC/DS-14/16/24 and requires 
     firmware 4.22 or up. 
+    
+    German translation by Norbert Kolb
 	---------------------------------------------------------
 	Localisation-file has to be as /Apps/Lang/RCT-OneC.jsn
 	---------------------------------------------------------
@@ -155,7 +157,7 @@ local function init()
     collectgarbage()
 end
 --------------------------------------------------------------------------------
-onecVersion = "1.0"
+onecVersion = "1.1"
 setLanguage()
 collectgarbage()
 return {init=init, loop=loop, author="RC-Thoughts", version=onecVersion, name="OneCapacity"}
