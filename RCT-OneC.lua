@@ -5,7 +5,7 @@
     Model and transmitter can be turned off getween usage
     and OneCapacity telemetry window will always show total
     battery capacity used for all flights until reset switch
-    is used.
+    is used or new battery is used.
     
     OneCapacity offers one Lua control to be used for alarms
     or anything else user wants.
@@ -25,8 +25,9 @@
 collectgarbage()
 --------------------------------------------------------------------------------
 -- Locals for application
-local capRun, capTot, capBatt = 0, 0, 0
-local swCap, swRun, capStore
+local timeSet, voltSet, capRun, capTot, capBatt = false, false, 0, 0, 0
+local voltRun, voltTime, timeNow = 0, 0, 0
+local swCap, swRun, capStore, voltStore
 local sensorLalist = { "..." }
 local sensorIdlist = { "..." }
 local sensorPalist = { "..." }
@@ -76,6 +77,21 @@ local function sensorChanged(value)
     pSave("capSePa", capSePa)
 end
 
+local function sensorVoltChanged(value)
+    local pSave = system.pSave
+    local format = string.format
+    voltSe = value
+    voltSeId = format("%s", sensorIdlist[voltSe])
+    voltSePa = format("%s", sensorPalist[voltSe])
+    if (voltSeId == "...") then
+        voltSeId = 0
+        voltSePa = 0 
+    end
+    pSave("voltSe", value)
+    pSave("voltSeId", voltSeId)
+    pSave("voltSePa", voltSePa)
+end
+
 local function capBattChanged(value)
     local pSave = system.pSave
 	capBatt = value
@@ -100,6 +116,10 @@ local function initForm()
     addRow(2)
     addLabel({label=trans13.capSensor, width=200})
     addSelectbox(sensorLalist, capSe, true, sensorChanged)
+    
+    addRow(2)
+    addLabel({label=trans13.voltSensor, width=220})
+    addSelectbox(sensorLalist, voltSe, true, sensorVoltChanged)
 	
 	addRow(2)
 	addLabel({label=trans13.swCap, width=220})
@@ -116,11 +136,11 @@ end
 --------------------------------------------------------------------------------
 local function loop()
     local swRun = system.getInputsVal(swCap)
-    local sensor = system.getSensorByID(capSeId, capSePa)
-    if(sensor and sensor.valid and swRun and swRun < 1) then
-        capRun = sensor.value
+    local sensorMah = system.getSensorByID(capSeId, capSePa)
+    local sensorVolt = system.getSensorByID(voltSeId, voltSePa)
+    if(sensorMah and sensorMah.valid and swRun and swRun < 1) then
+        capRun = sensorMah.value
         capTot = (capStore + capRun)
-        print("RUN Tot, Sto", capTot, capStore)
         else
         if(capTot > 0 or capStore == 0) then
             capStore = capTot
@@ -128,11 +148,38 @@ local function loop()
         end
         capTot = capStore
     end
+    
     if(swRun and swRun == 1) then
         capTot = 0
         capStore = 0
         system.pSave("capStore", capStore)
     end
+    
+    if(sensorVolt and sensorVolt.valid and sensorVolt.value > 5) then
+        voltRun = sensorVolt.value
+        timeNow = system.getTimeCounter()
+        if(not timeSet) then
+            voltTime = timeNow + 3000
+            timeSet = true
+            else
+            if(voltSet and timeNow > voltTime and voltRun > (voltStore * 0.98)) then
+                voltStore = voltRun
+                system.pSave("voltStore", voltStore)
+            end
+        end
+        if(not voltSet and voltTime > timeNow) then
+            if(voltRun > (voltStore * 1.02)) then
+                capTot = 0
+                capStore = 0
+                system.pSave("capStore", capStore)
+            end
+            voltSet = true
+        end
+        else
+        timeSet = false
+        voltSet = false
+    end
+    
     if(capTot >= capBatt and capBatt > 0) then
         system.setControl(1, 1, 0, 0)
         else
@@ -145,19 +192,23 @@ local function init()
     readSensors()
     local pLoad, registerForm = system.pLoad, system.registerForm
     local registerTelemetry, registerControl = system.registerTelemetry, system.registerControl
-	registerForm(1, MENU_APPS, trans13.appName, initForm, nil, printForm)
+    registerForm(1, MENU_APPS, trans13.appName, initForm, nil, printForm)
     registerTelemetry(1, trans13.capDsp, 1, printDisplay)
-	registerControl(1, trans13.capDsp, trans13.capAlm)
-	swCap = pLoad("swCap")
+    registerControl(1, trans13.capDsp, trans13.capAlm)
+    swCap = pLoad("swCap")
     capSe = pLoad("capSe", 0)
     capSeId = pLoad("capSeId", 0)
     capSePa = pLoad("capSePa", 0)
     capStore = pLoad("capStore", 0)
     capBatt = pLoad("capBatt", 0)
+    voltSe = pLoad("voltSe", 0)
+    voltSeId = pLoad("voltSeId", 0)
+    voltSePa = pLoad("voltSePa", 0)
+    voltStore = pLoad("voltStore", 0)
     collectgarbage()
 end
 --------------------------------------------------------------------------------
-onecVersion = "1.1"
+onecVersion = "1.2"
 setLanguage()
 collectgarbage()
 return {init=init, loop=loop, author="RC-Thoughts", version=onecVersion, name="OneCapacity"}
