@@ -139,7 +139,11 @@ local function loop()
     local sensorMah = system.getSensorByID(capSeId, capSePa)
     local sensorVolt = system.getSensorByID(voltSeId, voltSePa)
     if(sensorMah and sensorMah.valid and swRun and swRun < 1) then
-        capRun = sensorMah.value
+        if(sensorMah.unit == "Ah") then
+            capRun = sensor.value * 1000
+        else
+            capRun = sensor.value
+        end
         capTot = (capStore + capRun)
         else
         if(capTot > 0 or capStore == 0) then
@@ -208,7 +212,7 @@ local function init()
     collectgarbage()
 end
 --------------------------------------------------------------------------------
-onecVersion = "1.2"
+onecVersion = "1.3"
 setLanguage()
 collectgarbage()
 return {init=init, loop=loop, author="RC-Thoughts", version=onecVersion, name="OneCapacity"}
