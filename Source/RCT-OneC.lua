@@ -140,9 +140,9 @@ local function loop()
     local sensorVolt = system.getSensorByID(voltSeId, voltSePa)
     if(sensorMah and sensorMah.valid and swRun and swRun < 1) then
         if(sensorMah.unit == "Ah") then
-            capRun = sensor.value * 1000
+            capRun = sensorMah.value * 1000
         else
-            capRun = sensor.value
+            capRun = sensorMah.value
         end
         capTot = (capStore + capRun)
         else
