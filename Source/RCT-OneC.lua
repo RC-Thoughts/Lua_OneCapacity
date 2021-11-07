@@ -19,18 +19,17 @@
 	---------------------------------------------------------
 	OneCapacity is part of RC-Thoughts Jeti Tools.
 	---------------------------------------------------------
-	Released under MIT-license by Tero @ RC-Thoughts.com 2017
+	Released under MIT-license by RC-Thoughts.com 2017 - 2021
 	---------------------------------------------------------
 --]]
 collectgarbage()
 --------------------------------------------------------------------------------
 -- Locals for application
 local timeSet, voltSet, capRun, capTot, capBatt = false, false, 0, 0, 0
+local capSeId, capSePa, voltSeId, voltSePa
 local voltRun, voltTime, timeNow = 0, 0, 0
 local swCap, swRun, capStore, voltStore
-local sensorLalist = { "..." }
-local sensorIdlist = { "..." }
-local sensorPalist = { "..." }
+local sensorsAvailable = {"..."}
 --------------------------------------------------------------------------------
 -- Read translations
 local function setLanguage()
@@ -48,31 +47,15 @@ local function printDisplay()
 	lcd.drawText(145 - lcd.getTextWidth(FONT_BIG, string.format("%.0f", capTot).. "mAh"), 0, string.format("%.0f", capTot).. "mAh", FONT_BIG)
 end
 --------------------------------------------------------------------------------
--- Read available sensors for user to select
-local function readSensors()
-    local sensors = system.getSensors()
-    local format = string.format
-    local insert = table.insert
-    for i, sensor in ipairs(sensors) do
-        if (sensor.label ~= "") then
-            insert(sensorLalist, format("%s", sensor.label))
-            insert(sensorIdlist, format("%s", sensor.id))
-            insert(sensorPalist, format("%s", sensor.param))
-        end
-    end
-end
---------------------------------------------------------------------------------
 local function sensorChanged(value)
     local pSave = system.pSave
     local format = string.format
-    capSe = value
-    capSeId = format("%s", sensorIdlist[capSe])
-    capSePa = format("%s", sensorPalist[capSe])
+    capSeId  = sensorsAvailable[value].id
+	capSePa  = sensorsAvailable[value].param
     if (capSeId == "...") then
         capSeId = 0
         capSePa = 0 
     end
-    pSave("capSe", value)
     pSave("capSeId", capSeId)
     pSave("capSePa", capSePa)
 end
@@ -80,14 +63,12 @@ end
 local function sensorVoltChanged(value)
     local pSave = system.pSave
     local format = string.format
-    voltSe = value
-    voltSeId = format("%s", sensorIdlist[voltSe])
-    voltSePa = format("%s", sensorPalist[voltSe])
+	voltSeId  = sensorsAvailable[value].id
+	voltSePa  = sensorsAvailable[value].param
     if (voltSeId == "...") then
         voltSeId = 0
         voltSePa = 0 
     end
-    pSave("voltSe", value)
     pSave("voltSeId", voltSeId)
     pSave("voltSePa", voltSePa)
 end
@@ -106,6 +87,31 @@ end
 --------------------------------------------------------------------------------
 -- Draw the main form (Application inteface)
 local function initForm()
+    -- List sensors only if menu is active to preserve memory at runtime 
+    -- (measured up to 25% save if menu is not opened)
+    sensorsAvailable = {}
+    local sensors = system.getSensors();
+    local list={}
+    local curIndex1, curIndex2, curIndex3 = -1, -1, .1
+    local descr = ""
+    for index,sensor in ipairs(sensors) do 
+        if(sensor.param == 0) then
+            descr = sensor.label
+            else
+            list[#list + 1] = string.format("%s - %s", descr, sensor.label)
+            sensorsAvailable[#sensorsAvailable + 1] = sensor
+            if(sensor.id == capSeId and sensor.param == capSePa) then
+                curIndex1 =# sensorsAvailable
+            end
+            if(sensor.id == voltSeId and sensor.param == voltSePa) then
+                curIndex2 =# sensorsAvailable
+            end
+            if(sensor.id == senid3 and sensor.param == sparam3) then
+                curIndex3 =# sensorsAvailable
+            end
+        end
+    end 
+	
     local form, addRow, addLabel = form, form.addRow ,form.addLabel
     local addIntbox, addSelectbox = form.addIntbox, form.addSelectbox
     local addInputbox = form.addInputbox
@@ -115,11 +121,11 @@ local function initForm()
     
     addRow(2)
     addLabel({label=trans13.capSensor, width=200})
-    addSelectbox(sensorLalist, capSe, true, sensorChanged)
+    addSelectbox(list, curIndex1, true, sensorChanged)
     
     addRow(2)
     addLabel({label=trans13.voltSensor, width=220})
-    addSelectbox(sensorLalist, voltSe, true, sensorVoltChanged)
+    addSelectbox(list, curIndex2, true, sensorVoltChanged)
 	
 	addRow(2)
 	addLabel({label=trans13.swCap, width=220})
@@ -193,26 +199,23 @@ local function loop()
 end
 --------------------------------------------------------------------------------
 local function init()
-    readSensors()
     local pLoad, registerForm = system.pLoad, system.registerForm
     local registerTelemetry, registerControl = system.registerTelemetry, system.registerControl
     registerForm(1, MENU_APPS, trans13.appName, initForm, nil, printForm)
     registerTelemetry(1, trans13.capDsp, 1, printDisplay)
     registerControl(1, trans13.capDsp, trans13.capAlm)
     swCap = pLoad("swCap")
-    capSe = pLoad("capSe", 0)
     capSeId = pLoad("capSeId", 0)
     capSePa = pLoad("capSePa", 0)
     capStore = pLoad("capStore", 0)
     capBatt = pLoad("capBatt", 0)
-    voltSe = pLoad("voltSe", 0)
     voltSeId = pLoad("voltSeId", 0)
     voltSePa = pLoad("voltSePa", 0)
     voltStore = pLoad("voltStore", 0)
     collectgarbage()
 end
 --------------------------------------------------------------------------------
-onecVersion = "1.3"
+onecVersion = "1.4"
 setLanguage()
 collectgarbage()
 return {init=init, loop=loop, author="RC-Thoughts", version=onecVersion, name="OneCapacity"}
